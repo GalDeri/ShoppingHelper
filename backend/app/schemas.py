@@ -25,3 +25,10 @@ class StoreRead(StoreBase):
 
     class Config:
         orm_mode = True
+
+# schema for updating a store (all fields optional)
+class StoreUpdate(BaseModel):
+    name: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    address: Optional[str] = None

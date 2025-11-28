@@ -1,5 +1,78 @@
-node_modules/
-dist/
-build/
-.env
+# -------------------------
+# PYTHON / FASTAPI BACKEND
+# -------------------------
+
+# Virtual environment
+venv/
+VENV/
+env/
+ENV/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# SQLite database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Local settings / secrets
+*.env
+.env.*
+
+# Uvicorn / FastAPI logs
 *.log
+
+# VSCode python settings
+.vscode/
+
+
+# -------------------------
+# NODE / REACT FRONTEND
+# -------------------------
+
+# Node modules
+node_modules/
+
+# Build output
+build/
+dist/
+out/
+
+# Environment variables
+*.env.local
+*.env.development
+*.env.production
+*.env.test
+
+# React cache
+.cache/
+.npm/
+.pnp/
+.pnp.js
+
+# Logs
+yarn-debug.log*
+yarn-error.log*
+npm-debug.log*
+
+
+# -------------------------
+# OS / EDITOR JUNK FILES
+# -------------------------
+
+# Windows / Mac / Linux trash
+Thumbs.db
+.DS_Store
+*.swp
+*.swo
+
+# JetBrains / PyCharm
+.idea/
+
+# Temporary files
+*.tmp
+*.temp

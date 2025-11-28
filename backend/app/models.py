@@ -41,3 +41,4 @@ class Price(Base):
 
     store = relationship("Store", back_populates="prices")
     product = relationship("Product", back_populates="prices")
+

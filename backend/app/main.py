@@ -87,3 +87,72 @@ def delete_store(store_id: int, db: Session = Depends(get_db)):
 
     # 204 = Deleted successfully, no content
     return
+
+@app.post(
+    "/products",
+    response_model=schemas.ProductRead,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_product(
+    product: schemas.ProductCreate,
+    db: Session = Depends(get_db),
+):
+    db_product = models.Product(
+        name=product.name,
+        brand=product.brand,
+        category=product.category,
+        unit=product.unit,
+        size=product.size,
+    )
+    db.add(db_product)
+    db.commit()
+    db.refresh(db_product)
+    return db_product
+
+
+@app.get("/products", response_model=list[schemas.ProductRead])
+def list_products(db: Session = Depends(get_db)):
+    products = db.query(models.Product).all()
+    return products
+
+
+@app.get("/products/{product_id}", response_model=schemas.ProductRead)
+def get_product(product_id: int, db: Session = Depends(get_db)):
+    product = db.query(models.Product).filter(models.Product.id == product_id).first()
+    if product is None:
+        raise HTTPException(status_code=404, detail="Product not found")
+    return product
+
+
+@app.put("/products/{product_id}", response_model=schemas.ProductRead)
+def update_product(
+    product_id: int,
+    product: schemas.ProductUpdate,
+    db: Session = Depends(get_db),
+):
+    db_product = (
+        db.query(models.Product).filter(models.Product.id == product_id).first()
+    )
+    if db_product is None:
+        raise HTTPException(status_code=404, detail="Product not found")
+
+    update_data = product.dict(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(db_product, field, value)
+
+    db.commit()
+    db.refresh(db_product)
+    return db_product
+
+
+@app.delete("/products/{product_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_product(product_id: int, db: Session = Depends(get_db)):
+    db_product = (
+        db.query(models.Product).filter(models.Product.id == product_id).first()
+    )
+    if db_product is None:
+        raise HTTPException(status_code=404, detail="Product not found")
+
+    db.delete(db_product)
+    db.commit()
+    return

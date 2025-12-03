@@ -35,8 +35,8 @@ class StoreUpdate(BaseModel):
 
 class ProductBase(BaseModel):
     name: str
+    category: str
     brand: Optional[str] = None
-    category: Optional[str] = None
     unit: Optional[str] = None   # "L", "g", "item"
     size: Optional[float] = None # 1.0 for 1L, 500 for 500g
 
@@ -61,3 +61,27 @@ class ProductUpdate(BaseModel):
     category: Optional[str] = None
     unit: Optional[str] = None
     size: Optional[float] = None
+
+# === PRICE SCHEMAS ===
+
+class PriceBase(BaseModel):
+    store_id: int
+    product_id: int
+    price: float
+
+
+class PriceCreate(PriceBase):
+    pass
+
+
+class PriceRead(PriceBase):
+    id: int
+
+    class Config:
+        from_attributes = True
+
+
+class PriceUpdate(BaseModel):
+    store_id: Optional[int] = None
+    product_id: Optional[int] = None
+    price: Optional[float] = None

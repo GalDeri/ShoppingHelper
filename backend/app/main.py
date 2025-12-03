@@ -31,6 +31,10 @@ def health(db: Session = Depends(get_db)):
     count = db.query(models.Store).count()
     return {"status": "ok", "stores_in_db": count}
 
+# =========================
+# STORES ENDPOINTS
+# =========================
+
 @app.post("/stores", response_model=schemas.StoreRead, status_code=status.HTTP_201_CREATED)
 def create_store(store: schemas.StoreCreate, db: Session = Depends(get_db)):
     # 1. Create a Store DB object from the incoming data
@@ -88,11 +92,11 @@ def delete_store(store_id: int, db: Session = Depends(get_db)):
     # 204 = Deleted successfully, no content
     return
 
-@app.post(
-    "/products",
-    response_model=schemas.ProductRead,
-    status_code=status.HTTP_201_CREATED,
-)
+# =========================
+# PRODUCTS ENDPOINTS
+# =========================
+
+@app.post("/products", response_model=schemas.ProductRead, status_code=status.HTTP_201_CREATED)
 def create_product(
     product: schemas.ProductCreate,
     db: Session = Depends(get_db),
@@ -156,3 +160,63 @@ def delete_product(product_id: int, db: Session = Depends(get_db)):
     db.delete(db_product)
     db.commit()
     return
+
+# =========================
+# PRICE ENDPOINTS
+# =========================
+
+@app.post("/prices", response_model=schemas.PriceRead, status_code=status.HTTP_201_CREATED)
+def create_price(price: schemas.PriceCreate, db: Session = Depends(get_db)):
+    db_price = models.Price(
+        store_id=price.store_id,
+        product_id=price.product_id,
+        price=price.price,
+    )
+    db.add(db_price)
+    db.commit()
+    db.refresh(db_price)
+    return db_price
+
+
+@app.get("/prices", response_model=list[schemas.PriceRead])
+def list_prices(db: Session = Depends(get_db)):
+    return db.query(models.Price).all()
+
+
+@app.get("/prices/{price_id}", response_model=schemas.PriceRead)
+def get_price(price_id: int, db: Session = Depends(get_db)):
+    db_price = db.query(models.Price).filter(models.Price.id == price_id).first()
+    if not db_price:
+        raise HTTPException(status_code=404, detail="Price not found")
+    return db_price
+
+
+@app.put("/prices/{price_id}", response_model=schemas.PriceRead)
+def update_price(
+    price_id: int,
+    price: schemas.PriceUpdate,
+    db: Session = Depends(get_db),
+):
+    db_price = db.query(models.Price).filter(models.Price.id == price_id).first()
+    if not db_price:
+        raise HTTPException(status_code=404, detail="Price not found")
+
+    update_data = price.dict(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(db_price, field, value)
+
+    db.commit()
+    db.refresh(db_price)
+    return db_price
+
+
+@app.delete("/prices/{price_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_price(price_id: int, db: Session = Depends(get_db)):
+    db_price = db.query(models.Price).filter(models.Price.id == price_id).first()
+    if not db_price:
+        raise HTTPException(status_code=404, detail="Price not found")
+    db.delete(db_price)
+    db.commit()
+    return
+
+

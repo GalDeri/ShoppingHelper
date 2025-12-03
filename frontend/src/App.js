@@ -30,11 +30,24 @@ function App() {
   const [productEditingId, setProductEditingId] = useState(null);
   const [productSubmitting, setProductSubmitting] = useState(false);
 
+  // ===== PRICES STATE =====
+  const [prices, setPrices] = useState([]);
+  const [priceLoading, setPriceLoading] = useState(false);
+
+  const [priceForm, setPriceForm] = useState({
+    storeId: "",
+    productId: "",
+    price: "",
+  });
+
+  const [priceEditingId, setPriceEditingId] = useState(null);
+  const [priceSubmitting, setPriceSubmitting] = useState(false);
+
   // ===== GENERAL ERROR =====
   const [error, setError] = useState("");
 
   // =========================
-  // FETCH STORES
+  // FETCH FUNCTIONS
   // =========================
   const fetchStores = async () => {
     setStoreLoading(true);
@@ -54,9 +67,6 @@ function App() {
     }
   };
 
-  // =========================
-  // FETCH PRODUCTS
-  // =========================
   const fetchProducts = async () => {
     setProductLoading(true);
     setError("");
@@ -75,14 +85,32 @@ function App() {
     }
   };
 
-  // Initial load
+  const fetchPrices = async () => {
+    setPriceLoading(true);
+    setError("");
+
+    try {
+      const response = await fetch("http://127.0.0.1:8000/prices");
+      if (!response.ok) {
+        throw new Error("Failed to fetch prices");
+      }
+      const data = await response.json();
+      setPrices(data);
+    } catch (err) {
+      setError(err.message || "Something went wrong while fetching prices");
+    } finally {
+      setPriceLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchStores();
     fetchProducts();
+    fetchPrices();
   }, []);
 
   // =========================
-  // STORE FORM HANDLERS
+  // STORE HANDLERS
   // =========================
   const handleStoreChange = (e) => {
     const { name, value } = e.target;
@@ -133,6 +161,7 @@ function App() {
       }
 
       await fetchStores();
+      await fetchPrices(); // prices depend on stores
     } catch (err) {
       setError(err.message || "Something went wrong while deleting store");
     }
@@ -174,7 +203,6 @@ function App() {
       }
 
       await fetchStores();
-
       setStoreForm({
         name: "",
         latitude: "",
@@ -190,7 +218,7 @@ function App() {
   };
 
   // =========================
-  // PRODUCT FORM HANDLERS
+  // PRODUCT HANDLERS
   // =========================
   const handleProductChange = (e) => {
     const { name, value } = e.target;
@@ -243,6 +271,7 @@ function App() {
       }
 
       await fetchProducts();
+      await fetchPrices(); // prices depend on products
     } catch (err) {
       setError(err.message || "Something went wrong while deleting product");
     }
@@ -285,7 +314,6 @@ function App() {
       }
 
       await fetchProducts();
-
       setProductForm({
         name: "",
         brand: "",
@@ -302,10 +330,115 @@ function App() {
   };
 
   // =========================
+  // PRICE HANDLERS
+  // =========================
+  const handlePriceChange = (e) => {
+    const { name, value } = e.target;
+    setPriceForm((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handlePriceEditClick = (price) => {
+    setPriceEditingId(price.id);
+    setPriceForm({
+      storeId: String(price.store_id),
+      productId: String(price.product_id),
+      price: String(price.price),
+    });
+  };
+
+  const handlePriceCancelEdit = () => {
+    setPriceEditingId(null);
+    setPriceForm({
+      storeId: "",
+      productId: "",
+      price: "",
+    });
+  };
+
+  const handlePriceDelete = async (priceId) => {
+    if (!window.confirm("Are you sure you want to delete this price?")) return;
+
+    try {
+      const response = await fetch(
+        `http://127.0.0.1:8000/prices/${priceId}`,
+        { method: "DELETE" }
+      );
+
+      if (!response.ok) {
+        const text = await response.text();
+        console.error("Backend error:", text);
+        throw new Error("Failed to delete price");
+      }
+
+      await fetchPrices();
+    } catch (err) {
+      setError(err.message || "Something went wrong while deleting price");
+    }
+  };
+
+  const handlePriceSubmit = async (e) => {
+    e.preventDefault();
+    setPriceSubmitting(true);
+    setError("");
+
+    try {
+      const payload = {
+        store_id: parseInt(priceForm.storeId, 10),
+        product_id: parseInt(priceForm.productId, 10),
+        price: parseFloat(priceForm.price),
+      };
+
+      if (Number.isNaN(payload.store_id) || Number.isNaN(payload.product_id)) {
+        throw new Error("Store and Product must be selected");
+      }
+      if (Number.isNaN(payload.price)) {
+        throw new Error("Price must be a valid number");
+      }
+
+      let url = "http://127.0.0.1:8000/prices";
+      let method = "POST";
+
+      if (priceEditingId !== null) {
+        url = `http://127.0.0.1:8000/prices/${priceEditingId}`;
+        method = "PUT";
+      }
+
+      const response = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        console.error("Backend error:", text);
+        throw new Error(
+          `Failed to ${priceEditingId !== null ? "update" : "create"} price`
+        );
+      }
+
+      await fetchPrices();
+      setPriceForm({
+        storeId: "",
+        productId: "",
+        price: "",
+      });
+      setPriceEditingId(null);
+    } catch (err) {
+      setError(err.message || "Something went wrong while saving price");
+    } finally {
+      setPriceSubmitting(false);
+    }
+  };
+
+  // =========================
   // RENDER
   // =========================
   return (
-    <div style={{ maxWidth: "900px", margin: "0 auto", padding: "1rem" }}>
+    <div style={{ maxWidth: "1000px", margin: "0 auto", padding: "1rem" }}>
       <h1>Shopping Helper – Admin</h1>
 
       {error && <p style={{ color: "red" }}>Error: {error}</p>}
@@ -353,7 +486,9 @@ function App() {
             </label>
           </div>
 
-          <div style={{ display: "flex", gap: "0.5rem", marginBottom: "0.5rem" }}>
+          <div
+            style={{ display: "flex", gap: "0.5rem", marginBottom: "0.5rem" }}
+          >
             <div style={{ flex: 1 }}>
               <label>
                 Latitude:
@@ -468,6 +603,7 @@ function App() {
           border: "1px solid #ddd",
           borderRadius: "8px",
           padding: "1rem",
+          marginBottom: "1.5rem",
         }}
       >
         <h2>Products</h2>
@@ -492,6 +628,21 @@ function App() {
 
           <div style={{ marginBottom: "0.5rem" }}>
             <label>
+              Category*:
+              <br />
+              <input
+                name="category"
+                type="text"
+                value={productForm.category}
+                onChange={handleProductChange}
+                required
+                style={{ width: "100%", padding: "0.3rem" }}
+              />
+            </label>
+          </div>
+
+          <div style={{ marginBottom: "0.5rem" }}>
+            <label>
               Brand:
               <br />
               <input
@@ -504,21 +655,9 @@ function App() {
             </label>
           </div>
 
-          <div style={{ marginBottom: "0.5rem" }}>
-            <label>
-              Category:
-              <br />
-              <input
-                name="category"
-                type="text"
-                value={productForm.category}
-                onChange={handleProductChange}
-                style={{ width: "100%", padding: "0.3rem" }}
-              />
-            </label>
-          </div>
-
-          <div style={{ display: "flex", gap: "0.5rem", marginBottom: "0.5rem" }}>
+          <div
+            style={{ display: "flex", gap: "0.5rem", marginBottom: "0.5rem" }}
+          >
             <div style={{ flex: 1 }}>
               <label>
                 Unit (e.g. L, g, item):
@@ -550,7 +689,11 @@ function App() {
 
           <button
             type="submit"
-            disabled={productSubmitting || !productForm.name}
+            disabled={
+              productSubmitting ||
+              !productForm.name ||
+              !productForm.category
+            }
           >
             {productSubmitting
               ? productEditingId === null
@@ -596,8 +739,7 @@ function App() {
             >
               <div>
                 <strong>{product.name}</strong>
-                <br />
-                {product.brand && <span>Brand: {product.brand}</span>}
+                {product.brand && <> ({product.brand})</>}
                 <br />
                 {product.category && <span>Category: {product.category}</span>}
                 <br />
@@ -632,6 +774,175 @@ function App() {
               </div>
             </li>
           ))}
+        </ul>
+      </section>
+
+      {/* ===== PRICES SECTION ===== */}
+      <section
+        style={{
+          border: "1px solid #ddd",
+          borderRadius: "8px",
+          padding: "1rem",
+          marginBottom: "1.5rem",
+        }}
+      >
+        <h2>Prices</h2>
+
+        {/* Price form */}
+        <h3>{priceEditingId === null ? "Add Price" : "Edit Price"}</h3>
+        <form onSubmit={handlePriceSubmit}>
+          <div
+            style={{ display: "flex", gap: "0.5rem", marginBottom: "0.5rem" }}
+          >
+            <div style={{ flex: 1 }}>
+              <label>
+                Store*:
+                <br />
+                <select
+                  name="storeId"
+                  value={priceForm.storeId}
+                  onChange={handlePriceChange}
+                  style={{ width: "100%", padding: "0.3rem" }}
+                  required
+                >
+                  <option value="">Select store</option>
+                  {stores.map((store) => (
+                    <option key={store.id} value={store.id}>
+                      {store.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <div style={{ flex: 1 }}>
+              <label>
+                Product*:
+                <br />
+                <select
+                  name="productId"
+                  value={priceForm.productId}
+                  onChange={handlePriceChange}
+                  style={{ width: "100%", padding: "0.3rem" }}
+                  required
+                >
+                  <option value="">Select product</option>
+                  {products.map((product) => (
+                    <option key={product.id} value={product.id}>
+                      {product.name}
+                      {product.brand ? ` (${product.brand})` : ""}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          </div>
+
+          <div style={{ marginBottom: "0.5rem" }}>
+            <label>
+              Price*:
+              <br />
+              <input
+                name="price"
+                type="number"
+                step="0.01"
+                value={priceForm.price}
+                onChange={handlePriceChange}
+                style={{ width: "100%", padding: "0.3rem" }}
+                required
+              />
+            </label>
+          </div>
+
+          <button
+            type="submit"
+            disabled={
+              priceSubmitting ||
+              !priceForm.price ||
+              !priceForm.storeId ||
+              !priceForm.productId
+            }
+          >
+            {priceSubmitting
+              ? priceEditingId === null
+                ? "Adding..."
+                : "Saving..."
+              : priceEditingId === null
+              ? "Add Price"
+              : "Save Changes"}
+          </button>
+
+          {priceEditingId !== null && (
+            <button
+              type="button"
+              onClick={handlePriceCancelEdit}
+              style={{ marginLeft: "0.5rem" }}
+              disabled={priceSubmitting}
+            >
+              Cancel
+            </button>
+          )}
+        </form>
+
+        {/* Price list */}
+        {priceLoading && <p>Loading prices...</p>}
+
+        {!priceLoading && prices.length === 0 && (
+          <p>No prices found yet. Add one using the form above.</p>
+        )}
+
+        <ul>
+          {prices.map((price) => {
+            const store = stores.find((s) => s.id === price.store_id);
+            const product = products.find((p) => p.id === price.product_id);
+
+            const productLabel = product
+              ? `${product.name}${
+                  product.brand ? " (" + product.brand + ")" : ""
+                }`
+              : `Product #${price.product_id}`;
+
+            return (
+              <li
+                key={price.id}
+                style={{
+                  marginBottom: "0.5rem",
+                  borderBottom: "1px solid #eee",
+                  paddingBottom: "0.5rem",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: "1rem",
+                }}
+              >
+                <div>
+                  <strong>{productLabel}</strong>
+                  <br />
+                  <span>
+                    Store: {store ? store.name : `Store #${price.store_id}`}
+                  </span>
+                  <br />
+                  <small>Price: {price.price}</small>
+                </div>
+
+                <div style={{ display: "flex", gap: "0.5rem" }}>
+                  <button onClick={() => handlePriceEditClick(price)}>
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => handlePriceDelete(price.id)}
+                    style={{
+                      backgroundColor: "red",
+                      color: "white",
+                      border: "none",
+                      padding: "0.3rem 0.6rem",
+                    }}
+                  >
+                    Delete
+                  </button>
+                </div>
+              </li>
+            );
+          })}
         </ul>
       </section>
     </div>
